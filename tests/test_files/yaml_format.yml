@@ -1,0 +1,3 @@
+name: "${my_name}"
+enum: "$({item['${my_key}']: ${my_int} + index for index, item in enumerate(${names})})"
+list: "$([i['${my_key}'] for i in ${names}])"
