@@ -39,6 +39,13 @@ MOCK_STRIPPED_UUID = MOCK_UUID.replace("-", "")
         ("nested var",                          "${my.name}",                   "David"),
         ("list item var",                       "${names.1.name}",              "David"),
 
+        # defaults
+        ("var with default",                    "${names.2.name:Mike}",           "Mike"),
+        ("var with var default",                "${names.2.name:${names.1.name}}","David"),
+        ("var with invalid default",            "${names.2.name:${names.3.name}}", ValueError),
+        ("var with expression default",         "${names.2.name:$(my_func('${names.1.name}'))}",
+                                                "DavidDavid"),
+
         # invalid variables
         ("unclosed variable",                   "${my.name",                    ValueError),
         ("unclosed nested variable",            "${obj.${my_key}.string",       ValueError),

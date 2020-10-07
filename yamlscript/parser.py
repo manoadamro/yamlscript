@@ -10,6 +10,8 @@ VARIABLE_SCOPE = "{}"
 EXPRESSION_SCOPE = "()"
 ESCAPE_CHAR = "\\"
 
+NULL = type("NULL", (), {})
+
 
 def _finder(
     string: str, special_char: str, start_char: str, end_char: str, escape_char: str
@@ -61,15 +63,24 @@ def _sub(pattern: str, value: Any, string: str) -> Any:
     return _dump_i(value)
 
 
-def _sub_variables(string: str, context: Dict[str, Any]) -> str:
+def _sub_variables(string: str, context: Dict[str, Any], g: Dict[str, Any]) -> str:
     variables = _find_variables(string)
     for pattern, variable in variables.items():
-        value = (
-            ""
-            if not variable
-            else jsonpointer.resolve_pointer(context, "/" + variable.replace(".", "/"))
-        )
-        string = _sub(pattern, value, string)
+        parts = variable.split(":")
+        if len(parts) == 1:
+            default = NULL
+        else:
+            variable, default = parts[0], ":".join(parts[1:])
+        try:
+            value = (
+                "" if not variable
+                else jsonpointer.resolve_pointer(context, "/" + variable.replace(".", "/"))
+            )
+        except jsonpointer.JsonPointerException as ex:
+            if default is NULL:
+                raise ValueError
+            value = default
+        string = _sub(pattern, _sub_i(value, context, g), string)
     return string
 
 
@@ -80,7 +91,7 @@ def _sub_expressions(string: str, context: Dict[str, Any], g: Dict[str, Any]) ->
             f"(?<!{re.escape(ESCAPE_CHAR)})" + re.escape(SPECIAL_CHAR) + re.escape("(")
         )
         expression = re.sub(regex, "(", expression)
-        expression = _sub_variables(expression, context)
+        expression = _sub_variables(expression, context, g)
         if not expression:
             value = ""
         else:
@@ -96,7 +107,7 @@ def _sub_string(string: str, context: Dict[str, Any], g: Dict[str, Any]) -> Any:
     value = _sub_expressions(string, context, g)
     if not isinstance(value, str):
         return value
-    value = _sub_variables(value, context)
+    value = _sub_variables(value, context, g)
     return value.replace(ESCAPE_CHAR + SPECIAL_CHAR, SPECIAL_CHAR)
 
 
